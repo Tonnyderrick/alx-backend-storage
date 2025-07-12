@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main file for testing the Cache class.
+Main file for testing Cache class.
 """
 
 import redis

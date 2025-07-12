@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-This module defines the Cache class that provides simple
-methods for storing data in a Redis database.
+This module defines a Cache class for storing data in Redis.
+It includes a method for storing data using a random key.
 """
 
 import redis
@@ -11,25 +11,25 @@ from typing import Union
 
 class Cache:
     """
-    Cache class for storing arbitrary data in Redis using random keys.
+    Cache provides simple methods for interacting with Redis.
     """
 
     def __init__(self) -> None:
         """
-        Initialize a Redis client instance and flush existing data.
+        Initializes the Redis client and flushes the database.
         """
         self._redis = redis.Redis()
         self._redis.flushdb()
 
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
-        Store the given data in Redis and return the generated key.
+        Store data in Redis using a randomly generated key.
 
         Args:
-            data: The data to be stored (str, bytes, int, or float)
+            data (Union[str, bytes, int, float]): The data to store.
 
         Returns:
-            A string representing the key under which the data was stored.
+            str: The key under which the data is stored.
         """
         key = str(uuid.uuid4())
         self._redis.set(key, data)
