@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
 This module defines the Cache class for storing and retrieving
-data from a Redis database. It includes utilities for storing
-different data types, retrieving and converting them, and tracking
-method calls.
+data from a Redis database. It supports tracking method calls,
+storing inputs and outputs, and retrieving values with type conversion.
 """
 
 import redis
@@ -16,44 +15,63 @@ def count_calls(method: Callable) -> Callable:
     """
     Decorator that counts how many times a method is called.
 
-    It uses the Redis INCR command to increment a counter
-    stored under the method's qualified name.
+    Stores the count in Redis using INCR on the method's qualified name.
     """
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        """
-        Wrapper function that increments the call count
-        and calls the original method.
-        """
-        key = method.__qualname__
-        self._redis.incr(key)
+        """Wrapper that increments call count in Redis."""
+        self._redis.incr(method.__qualname__)
         return method(self, *args, **kwargs)
+    return wrapper
 
+
+def call_history(method: Callable) -> Callable:
+    """
+    Decorator that stores the history of inputs and outputs for a method.
+
+    Uses RPUSH to append serialized inputs and outputs into Redis lists.
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """Wrapper that records inputs and outputs of a method."""
+        input_key = method.__qualname__ + ":inputs"
+        output_key = method.__qualname__ + ":outputs"
+
+        # Save input
+        self._redis.rpush(input_key, str(args))
+
+        # Call method
+        result = method(self, *args, **kwargs)
+
+        # Save output
+        self._redis.rpush(output_key, str(result))
+        return result
     return wrapper
 
 
 class Cache:
     """
-    Cache class that provides simple Redis-based data storage.
+    Cache class to interface with Redis for data storage.
     """
 
     def __init__(self):
         """
-        Initialize a Redis client and flush the database.
+        Initialize the Cache instance and flush any existing Redis data.
         """
         self._redis = redis.Redis()
         self._redis.flushdb()
 
+    @call_history
     @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
-        Store the given data in Redis using a random key.
+        Store the given data in Redis with a generated UUID key.
 
         Args:
-            data: The data to store. Can be str, bytes, int, or float.
+            data: The value to store (str, bytes, int, or float)
 
         Returns:
-            The key under which the data was stored (as a string).
+            A string representing the generated Redis key
         """
         key = str(uuid.uuid4())
         self._redis.set(key, data)
@@ -61,14 +79,14 @@ class Cache:
 
     def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
         """
-        Retrieve data from Redis and optionally convert it using fn.
+        Retrieve data from Redis and optionally convert it with a function.
 
         Args:
-            key: The Redis key to retrieve.
-            fn: Optional callable to convert the data.
+            key: Redis key to retrieve
+            fn: Optional function to apply to the result
 
         Returns:
-            The retrieved and converted data, or None if key does not exist.
+            Retrieved and optionally transformed data
         """
         data = self._redis.get(key)
         if data is None:
@@ -77,24 +95,24 @@ class Cache:
 
     def get_str(self, key: str) -> Optional[str]:
         """
-        Retrieve data from Redis and decode it as a UTF-8 string.
+        Retrieve data as a UTF-8 decoded string.
 
         Args:
-            key: The Redis key to retrieve.
+            key: Redis key to retrieve
 
         Returns:
-            The data as a UTF-8 string, or None if key does not exist.
+            String version of the data or None
         """
         return self.get(key, fn=lambda d: d.decode('utf-8'))
 
     def get_int(self, key: str) -> Optional[int]:
         """
-        Retrieve data from Redis and convert it to an integer.
+        Retrieve data and convert it to an integer.
 
         Args:
-            key: The Redis key to retrieve.
+            key: Redis key to retrieve
 
         Returns:
-            The data as an integer, or None if key does not exist.
+            Integer value or None
         """
         return self.get(key, fn=int)
