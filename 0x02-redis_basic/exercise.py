@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 This module defines the Cache class for storing and retrieving
-data from a Redis database. It supports tracking method calls,
-storing inputs and outputs, and retrieving values with type conversion.
+data from a Redis database. It also tracks method calls and
+stores the history of inputs and outputs.
 """
 
 import redis
@@ -37,16 +37,30 @@ def call_history(method: Callable) -> Callable:
         input_key = method.__qualname__ + ":inputs"
         output_key = method.__qualname__ + ":outputs"
 
-        # Save input
         self._redis.rpush(input_key, str(args))
-
-        # Call method
         result = method(self, *args, **kwargs)
-
-        # Save output
         self._redis.rpush(output_key, str(result))
         return result
     return wrapper
+
+
+def replay(method: Callable) -> None:
+    """
+    Display the history of calls of a particular function.
+
+    It prints the number of times the function was called,
+    and its inputs and corresponding outputs.
+    """
+    redis_instance = method.__self__._redis
+    method_name = method.__qualname__
+
+    inputs = redis_instance.lrange(f"{method_name}:inputs", 0, -1)
+    outputs = redis_instance.lrange(f"{method_name}:outputs", 0, -1)
+
+    print(f"{method_name} was called {len(inputs)} times:")
+
+    for inp, out in zip(inputs, outputs):
+        print(f"{method_name}(*{inp.decode('utf-8')}) -> {out.decode('utf-8')}")
 
 
 class Cache:
