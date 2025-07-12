@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-""" Test for replay() """
+"""
+Main file for testing the Cache class.
+"""
 
-from exercise import Cache, replay
+import redis
+from exercise import Cache
 
 cache = Cache()
 
-cache.store("foo")
-cache.store("bar")
-cache.store(42)
+data = b"hello"
+key = cache.store(data)
+print(key)
 
-replay(cache.store)
+local_redis = redis.Redis()
+print(local_redis.get(key))
