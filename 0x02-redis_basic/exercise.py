@@ -1,36 +1,33 @@
 #!/usr/bin/env python3
-"""
-This module defines a Cache class for storing data in Redis.
-It includes a method for storing data using a random key.
-"""
-
 import redis
 import uuid
-from typing import Union
+from typing import Union, Callable, Optional
 
 
 class Cache:
-    """
-    Cache provides simple methods for interacting with Redis.
-    """
-
-    def __init__(self) -> None:
-        """
-        Initializes the Redis client and flushes the database.
-        """
+    def __init__(self):
         self._redis = redis.Redis()
         self._redis.flushdb()
 
     def store(self, data: Union[str, bytes, int, float]) -> str:
-        """
-        Store data in Redis using a randomly generated key.
-
-        Args:
-            data (Union[str, bytes, int, float]): The data to store.
-
-        Returns:
-            str: The key under which the data is stored.
-        """
+        """Store data in Redis with a random key"""
         key = str(uuid.uuid4())
         self._redis.set(key, data)
         return key
+
+    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, None]:
+        """Get data from Redis and optionally apply a conversion function"""
+        data = self._redis.get(key)
+        if data is None:
+            return None
+        if fn is not None:
+            return fn(data)
+        return data
+
+    def get_str(self, key: str) -> Optional[str]:
+        """Get data and convert to string"""
+        return self.get(key, fn=lambda d: d.decode('utf-8'))
+
+    def get_int(self, key: str) -> Optional[int]:
+        """Get data and convert to int"""
+        return self.get(key, fn=int)
