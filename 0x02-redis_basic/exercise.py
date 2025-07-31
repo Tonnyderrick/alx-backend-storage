@@ -58,7 +58,9 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
+    def get(
+        self, key: str, fn: Optional[Callable] = None
+    ) -> Union[str, bytes, int, float, None]:
         """
         Retrieve data from Redis and optionally convert it
         """
@@ -78,20 +80,3 @@ class Cache:
         Get value as integer
         """
         return self.get(key, int)
-
-
-def replay(method: Callable):
-    """
-    Display the history of calls of a particular function
-    """
-    redis_client = redis.Redis()
-    method_name = method.__qualname__
-    inputs_key = f"{method_name}:inputs"
-    outputs_key = f"{method_name}:outputs"
-
-    inputs = redis_client.lrange(inputs_key, 0, -1)
-    outputs = redis_client.lrange(outputs_key, 0, -1)
-
-    print(f"{method_name} was called {len(inputs)} times:")
-    for inp, out in zip(inputs, outputs):
-        print(f"{method_name}(*{inp.decode('utf-8')}) -> {out.decode('utf-8')}")
